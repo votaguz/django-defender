@@ -1,6 +1,6 @@
 from django.test.testcases import TestCase, TransactionTestCase
 
-from .connection import get_redis_connection
+from defender.connection import get_redis_connection
 
 
 class DefenderTestCaseMixin(object):

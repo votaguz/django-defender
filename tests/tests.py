@@ -3,22 +3,22 @@ import string
 import time
 from distutils.version import StrictVersion
 
-from mock import patch
-
 from django import get_version
-from django.contrib.auth.models import User
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import User
 from django.contrib.sessions.backends.db import SessionStore
 from django.core.urlresolvers import NoReverseMatch
 from django.core.urlresolvers import reverse
 from django.http import HttpRequest
 from django.test.client import RequestFactory
+from mock import patch
 
-from . import utils
-from . import config
-from .connection import parse_redis_url, get_redis_connection
-from .models import AccessAttempt
-from .test import DefenderTestCase, DefenderTransactionTestCase
+from defender import config
+from defender import utils
+from defender.connection import parse_redis_url, get_redis_connection
+from defender.models import AccessAttempt
+from tests_utils import DefenderTestCase, DefenderTransactionTestCase
+
 
 # Django >= 1.7 compatibility
 try:
@@ -529,7 +529,7 @@ class AccessAttemptTest(DefenderTestCase):
 
     def test_admin(self):
         """ test the admin pages for this app """
-        from .admin import AccessAttemptAdmin
+        from defender.admin import AccessAttemptAdmin
         AccessAttemptAdmin
 
     def test_decorator_middleware(self):

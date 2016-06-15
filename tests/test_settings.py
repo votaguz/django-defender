@@ -1,4 +1,7 @@
 import os
+import django
+
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(_file_)))
 
 DATABASES = {
     'default': {
@@ -17,9 +20,9 @@ MIDDLEWARE_CLASSES = (
     'defender.middleware.FailedLoginMiddleware',
 )
 
-ROOT_URLCONF = 'defender.test_urls'
+ROOT_URLCONF = 'tests.test_urls'
 
-INSTALLED_APPS = [
+INSTALLED_APPS = (
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -27,7 +30,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.admin',
     'defender',
-]
+)
 
 TEMPLATES = [
     {
