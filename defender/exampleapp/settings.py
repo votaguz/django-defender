@@ -20,6 +20,13 @@ DATABASES = {
 }
 
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+        'LOCATION': '127.0.0.1:11211',
+    }
+}
+
 SITE_ID = 1
 
 MIDDLEWARE_CLASSES = (
@@ -39,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.admin',
     'django.contrib.staticfiles',
+    'south',
     'defender',
 ]
 
@@ -79,3 +87,8 @@ app.config_from_object('django.conf:settings')
 app.autodiscover_tasks(lambda: INSTALLED_APPS)
 
 DEBUG = True
+
+
+SOUTH_MIGRATION_MODULES = {
+    'defender': 'defender.south_migrations'
+}

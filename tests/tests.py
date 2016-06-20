@@ -15,6 +15,7 @@ from mock import patch
 
 from defender import config
 from defender import utils
+from defender.config import DEFENDER_CACHE
 from defender.connection import parse_redis_url, get_redis_connection
 from defender.models import AccessAttempt
 from tests_utils import DefenderTestCase, DefenderTransactionTestCase
@@ -71,6 +72,10 @@ class AccessAttemptTest(DefenderTestCase):
     def setUp(self):
         """ Create a valid user for login
         """
+        print ">>"*20
+        import django;
+        print django.VERSION
+        print ">>"*20
         self.user = User.objects.create_superuser(
             username=VALID_USERNAME,
             email='test@example.com',
@@ -672,13 +677,13 @@ class DefenderTestCaseTest(DefenderTestCase):
     key = 'test_key'
 
     def test_first_incr(self):
-        utils.REDIS_SERVER.incr(self.key)
-        result = int(utils.REDIS_SERVER.get(self.key))
+        DEFENDER_CACHE.incr(self.key)
+        result = int(DEFENDER_CACHE.get(self.key))
         self.assertEqual(result, 1)
 
     def test_second_incr(self):
-        utils.REDIS_SERVER.incr(self.key)
-        result = int(utils.REDIS_SERVER.get(self.key))
+        DEFENDER_CACHE.incr(self.key)
+        result = int(DEFENDER_CACHE.get(self.key))
         self.assertEqual(result, 1)
 
 
@@ -687,13 +692,13 @@ class DefenderTransactionTestCaseTest(DefenderTransactionTestCase):
     key = 'test_key'
 
     def test_first_incr(self):
-        utils.REDIS_SERVER.incr(self.key)
-        result = int(utils.REDIS_SERVER.get(self.key))
+        DEFENDER_CACHE.incr(self.key)
+        result = int(DEFENDER_CACHE.get(self.key))
         self.assertEqual(result, 1)
 
     def test_second_incr(self):
-        utils.REDIS_SERVER.incr(self.key)
-        result = int(utils.REDIS_SERVER.get(self.key))
+        DEFENDER_CACHE.incr(self.key)
+        result = int(DEFENDER_CACHE.get(self.key))
         self.assertEqual(result, 1)
 
 

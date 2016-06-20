@@ -32,6 +32,10 @@ class AccessAttempt(models.Model):
         default=False,
     )
 
+    is_blocked = models.BooleanField(
+        default=False,
+    )
+
     class Meta:
         ordering = ['-attempt_time']
 
@@ -39,4 +43,5 @@ class AccessAttempt(models.Model):
         """ unicode value for this model """
         return "{0} @ {1} | {2}".format(self.username,
                                         self.attempt_time,
-                                        self.login_valid)
+                                        self.login_valid,
+                                        self.blocked_attempt)

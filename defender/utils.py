@@ -6,11 +6,10 @@ from django.shortcuts import render
 from django.core.validators import validate_ipv46_address
 from django.core.exceptions import ValidationError
 
-from .connection import get_redis_connection
+from defender.models import AccessAttempt
 from . import config
+from .config import DEFENDER_CACHE
 from .data import store_login_attempt
-
-REDIS_SERVER = get_redis_connection()
 
 LOG = logging.getLogger(__name__)
 
@@ -86,48 +85,50 @@ def strip_keys(key_list):
 
 def get_blocked_ips():
     """ get a list of blocked ips from redis """
+    # TODO: Retrieve all this information from DB
     if config.DISABLE_IP_LOCKOUT:
         # There are no blocked IP's since we disabled them.
         return []
-    key = get_ip_blocked_cache_key("*")
-    key_list = [redis_key.decode('utf-8')
-                for redis_key in REDIS_SERVER.keys(key)]
-    return strip_keys(key_list)
+
+    return AccessAttempt.objects.filter(is_blocked=True).values_list('ip_address')
+
+    # key = get_ip_blocked_cache_key("*")
+    # key_list = [redis_key.decode('utf-8')
+    #             for redis_key in REDIS_SERVER.keys(key)]
+    # return strip_keys(key_list)
 
 
 def get_blocked_usernames():
     """ get a list of blocked usernames from redis """
-    key = get_username_blocked_cache_key("*")
-    key_list = [redis_key.decode('utf-8')
-                for redis_key in REDIS_SERVER.keys(key)]
-    return strip_keys(key_list)
+    # TODO: Retrieve all this information from DB
+    return AccessAttempt.objects.filter(is_blocked=True).values_list('username')
 
 
 def increment_key(key):
     """ given a key increment the value """
-    pipe = REDIS_SERVER.pipeline()
-    pipe.incr(key, 1)
-    if config.COOLOFF_TIME:
-        pipe.expire(key, config.COOLOFF_TIME)
-    new_value = pipe.execute()[0]
-    return new_value
+    try:
+        return DEFENDER_CACHE.incr(key, 1)
+    except ValueError:
+        # We are trying to increment a key that doesn't exists.
+        pass
 
 
 def get_user_attempts(request):
     """ Returns number of access attempts for this ip, username
     """
+    # TODO: Retrieve all this information from DB
     ip_address = get_ip(request)
 
     username = request.POST.get(config.USERNAME_FORM_FIELD, None)
 
     # get by IP
-    ip_count = REDIS_SERVER.get(get_ip_attempt_cache_key(ip_address))
+    ip_count = DEFENDER_CACHE.get(get_ip_attempt_cache_key(ip_address))
     if not ip_count:
         ip_count = 0
     ip_count = int(ip_count)
 
     # get by username
-    username_count = REDIS_SERVER.get(get_username_attempt_cache_key(username))
+    username_count = DEFENDER_CACHE.get(get_username_attempt_cache_key(username))
     if not username_count:
         username_count = 0
     username_count = int(username_count)
@@ -146,9 +147,9 @@ def block_ip(ip_address):
         return
     key = get_ip_blocked_cache_key(ip_address)
     if config.COOLOFF_TIME:
-        REDIS_SERVER.set(key, 'blocked', config.COOLOFF_TIME)
+        DEFENDER_CACHE.set(key, 'blocked', config.COOLOFF_TIME)
     else:
-        REDIS_SERVER.set(key, 'blocked')
+        DEFENDER_CACHE.set(key, 'blocked')
 
 
 def block_username(username):
@@ -158,9 +159,9 @@ def block_username(username):
         return
     key = get_username_blocked_cache_key(username)
     if config.COOLOFF_TIME:
-        REDIS_SERVER.set(key, 'blocked', config.COOLOFF_TIME)
+        DEFENDER_CACHE.set(key, 'blocked', config.COOLOFF_TIME)
     else:
-        REDIS_SERVER.set(key, 'blocked')
+        DEFENDER_CACHE.set(key, 'blocked')
 
 
 def record_failed_attempt(ip_address, username):
@@ -205,41 +206,47 @@ def record_failed_attempt(ip_address, username):
     return not (ip_block or user_block)
 
 
-def unblock_ip(ip_address, pipe=None):
-    """ unblock the given IP """
-    do_commit = False
-    if not pipe:
-        pipe = REDIS_SERVER.pipeline()
-        do_commit = True
-    if ip_address:
-        pipe.delete(get_ip_attempt_cache_key(ip_address))
-        pipe.delete(get_ip_blocked_cache_key(ip_address))
-        if do_commit:
-            pipe.execute()
+# def unblock_ip(ip_address, pipe=None):
+#     """ unblock the given IP """
+#     do_commit = False
+#     if not pipe:
+#         pipe = REDIS_SERVER.pipeline()
+#         do_commit = True
+#     if ip_address:
+#        pipe.delete(get_ip_attempt_cache_key(ip_address))
+#        pipe.delete(get_ip_blocked_cache_key(ip_address))
+#         if do_commit:
+#             pipe.execute()
+
+def unblock_ip(ip_address):
+    """Unblocks the given IP"""
+    DEFENDER_CACHE.delete(get_ip_attempt_cache_key(ip_address))
+    DEFENDER_CACHE.delete(get_ip_blocked_cache_key(ip_address))
 
 
-def unblock_username(username, pipe=None):
-    """ unblock the given Username """
-    do_commit = False
-    if not pipe:
-        pipe = REDIS_SERVER.pipeline()
-        do_commit = True
-    if username:
-        pipe.delete(get_username_attempt_cache_key(username))
-        pipe.delete(get_username_blocked_cache_key(username))
-        if do_commit:
-            pipe.execute()
+def unblock_username(username):
+    """Unblocks the given username"""
+    DEFENDER_CACHE.delete(get_ip_attempt_cache_key(username))
+    DEFENDER_CACHE.delete(get_ip_blocked_cache_key(username))
+
+# def unblock_username(username, pipe=None):
+#     """ unblock the given Username """
+#     do_commit = False
+#     if not pipe:
+#         pipe = REDIS_SERVER.pipeline()
+#         do_commit = True
+#     if username:
+#         pipe.delete(get_username_attempt_cache_key(username))
+#         pipe.delete(get_username_blocked_cache_key(username))
+#         if do_commit:
+#             pipe.execute()
 
 
 def reset_failed_attempts(ip_address=None, username=None):
     """ reset the failed attempts for these ip's and usernames
     """
-    pipe = REDIS_SERVER.pipeline()
-
-    unblock_ip(ip_address, pipe=pipe)
-    unblock_username(username, pipe=pipe)
-
-    pipe.execute()
+    unblock_ip(ip_address)
+    unblock_username(username)
 
 
 def lockout_response(request):
@@ -267,7 +274,7 @@ def is_user_already_locked(username):
     """Is this username already locked?"""
     if username is None:
         return False
-    return REDIS_SERVER.get(get_username_blocked_cache_key(username))
+    return DEFENDER_CACHE.get(get_username_blocked_cache_key(username))
 
 
 def is_source_ip_already_locked(ip_address):
@@ -276,7 +283,7 @@ def is_source_ip_already_locked(ip_address):
         return False
     if config.DISABLE_IP_LOCKOUT:
         return False
-    return REDIS_SERVER.get(get_ip_blocked_cache_key(ip_address))
+    return DEFENDER_CACHE.get(get_ip_blocked_cache_key(ip_address))
 
 
 def is_already_locked(request):

@@ -68,3 +68,11 @@ except ValueError:  # pragma: no cover
     raise Exception(
         'DEFENDER_ACCESS_ATTEMPT_EXPIRATION'
         ' needs to be an integer')  # pragma: no cover
+
+
+try:
+    from django.core.cache import get_cache
+    DEFENDER_CACHE = get_cache('default')
+except ImportError:
+    from django.core.cache import cache
+    DEFENDER_CACHE = cache
